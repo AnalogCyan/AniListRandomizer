@@ -269,7 +269,7 @@ def main_loop():
             elif key.lower() == "e":
                 webbrowser.open(f"https://anilist.co/anime/{anime_id}")
             elif key.lower() == "w":
-                subprocess.run(["ani-cli", shlex.quote(anime_title)], check=True)
+                subprocess.run(["ani-cli", anime_title])
             else:
                 continue  # Skip clearing and reprinting if key is not recognized
 
