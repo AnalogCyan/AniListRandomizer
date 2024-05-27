@@ -5,6 +5,7 @@ import sys
 import tty
 import termios
 import webbrowser
+import shlex
 import subprocess
 from rich.console import Console
 from rich.table import Table
@@ -15,7 +16,7 @@ from rich.progress import Progress, BarColumn, TextColumn
 console = Console(record=True)
 
 
-def fetch_anime_list(user_name):
+def fetch_anime_list(USER_NAME):
     query = """
     query ($username: String) {
       MediaListCollection(userName: $username, type: ANIME) {
@@ -86,10 +87,12 @@ def fetch_anime_list(user_name):
       }
     }
     """
-    variables = {"username": user_name}
+    variables = {"username": USER_NAME}
 
     url = "https://graphql.anilist.co"
-    response = requests.post(url, json={"query": query, "variables": variables})
+    response = requests.post(
+        url, json={"query": query, "variables": variables}, timeout=10
+    )
 
     if response.status_code == 200:
         return response.json()
@@ -144,7 +147,7 @@ def select_random_anime(anime_entries, weights):
         if upto + weight >= r:
             return entry
         upto += weight
-    assert False, "Shouldn't get here"
+    raise ValueError("Failed to select a random anime.")
 
 
 def format_date(date_dict):
@@ -208,7 +211,6 @@ def print_anime_details(selected_entry):
             BarColumn(bar_width=progress_bar_width),
             TextColumn(f"{progress}/{episodes}"),
         )
-        task_id = progress_bar.add_task("", total=episodes, completed=progress)
         console.print(progress_bar, justify="center")
 
     return selected_anime["id"], selected_anime["title"]["romaji"]
@@ -242,9 +244,9 @@ def clear_terminal():
 
 
 # Ask for the AniList username
-user_name = Prompt.ask("[bold cyan]Enter your AniList username[/bold cyan]")
+USER_NAME = Prompt.ask("[bold cyan]Enter your AniList username[/bold cyan]")
 
-anime_list = fetch_anime_list(user_name)
+anime_list = fetch_anime_list(USER_NAME)
 
 
 def main_loop():
@@ -266,7 +268,7 @@ def main_loop():
             elif key.lower() == "e":
                 webbrowser.open(f"https://anilist.co/anime/{anime_id}")
             elif key.lower() == "w":
-                subprocess.run(["ani-cli", anime_title])
+                subprocess.run(["ani-cli", shlex.quote(anime_title)], check=True)
             else:
                 continue  # Skip clearing and reprinting if key is not recognized
 
