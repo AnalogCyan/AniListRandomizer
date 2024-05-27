@@ -128,10 +128,6 @@ def calculate_weights(anime_list):
             if entry["status"] == "CURRENT":
                 weight *= 2
 
-            # Additional weight if series has already been started
-            if progress > 0:
-                weight *= 1.5
-
             # Additional weight if any related entries are completed
             for related in entry["media"]["relations"]["edges"]:
                 if related["node"]["id"] in completed_ids:
