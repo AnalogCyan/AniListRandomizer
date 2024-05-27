@@ -12,6 +12,7 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.progress import Progress, BarColumn, TextColumn
+from rich.align import Align
 
 console = Console(record=True)
 
@@ -195,23 +196,20 @@ def print_anime_details(selected_entry):
 
     console.print(table, justify="center")
 
-    # Calculate the width of the rendered table
-    rendered_table = console.export_text()
-    table_width = max(len(line) for line in rendered_table.splitlines() if line.strip())
-
     # Display progress bar if the anime is in progress or paused
     if selected_entry["status"] in ["CURRENT", "PAUSED"]:
         progress_text = f"Progress: {progress}/{episodes}"
         console.print(f"[bold yellow]{progress_text}[/bold yellow]", justify="center")
         progress_bar_width = min(
-            table_width, 50
+            50, console.width - 20
         )  # Set a max width for the progress bar
         progress_bar = Progress(
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             BarColumn(bar_width=progress_bar_width),
             TextColumn(f"{progress}/{episodes}"),
         )
-        console.print(progress_bar, justify="center")
+        task = progress_bar.add_task("", total=episodes, completed=progress)
+        console.print(Align.center(progress_bar))
 
     return selected_anime["id"], selected_anime["title"]["romaji"]
 
