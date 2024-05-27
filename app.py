@@ -173,8 +173,15 @@ def print_anime_details(selected_entry):
     )
     tags = ", ".join(tag["name"] for tag in selected_anime["tags"][:4])
 
+    # Print the anime title in English if available, else in Romaji, else in Native
+    if selected_anime["title"]["english"]:
+        anime_title = selected_anime["title"]["english"]
+    elif selected_anime["title"]["romaji"]:
+        anime_title = selected_anime["title"]["romaji"]
+    else:
+        anime_title = selected_anime["title"]["native"]
     table = Table(
-        title=selected_anime["title"]["romaji"],
+        title=anime_title,
         show_header=True,
         header_style="bold magenta",
     )
