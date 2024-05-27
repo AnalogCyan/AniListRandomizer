@@ -197,7 +197,7 @@ def print_anime_details(selected_entry):
     console.print(table, justify="center")
 
     # Display progress bar if the anime is in progress or paused
-    if selected_entry["status"] in ["CURRENT", "PAUSED"]:
+    if selected_entry["status"] in ["CURRENT", "PAUSED"] and progress > 0:
         progress_text = f"Progress: {progress}/{episodes}"
         console.print(f"[bold yellow]{progress_text}[/bold yellow]", justify="center")
         progress_bar_width = min(
@@ -210,6 +210,9 @@ def print_anime_details(selected_entry):
         )
         task = progress_bar.add_task("", total=episodes, completed=progress)
         console.print(Align.center(progress_bar))
+    else:
+        status_text = f"Progress: {selected_entry['status']}"
+        console.print(f"[bold yellow]{status_text}[/bold yellow]", justify="center")
 
     return selected_anime["id"], selected_anime["title"]["romaji"]
 
