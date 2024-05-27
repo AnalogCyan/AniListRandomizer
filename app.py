@@ -221,7 +221,7 @@ def print_anime_details(selected_entry):
         status_text = f"Progress: {selected_entry['status']}"
         console.print(f"[bold yellow]{status_text}[/bold yellow]", justify="center")
 
-    return selected_anime["id"], selected_anime["title"]["romaji"]
+    return selected_anime["id"], anime_title
 
 
 def get_keypress():
