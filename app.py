@@ -260,7 +260,7 @@ def calculate_weights(anime_list, SEARCH_SCOPE):
                     & completed_studios
                 )
 
-                if weight > 0.1:
+                if weight > 0.15:
                     weight = 0.1
 
                 weights.append(weight)
