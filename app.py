@@ -126,7 +126,7 @@ def calculate_weights(anime_list):
 
             # Higher weight for 'watching' status
             if entry["status"] == "CURRENT":
-                weight *= 2
+                weight *= 4
 
             # Additional weight if any related entries are completed
             for related in entry["media"]["relations"]["edges"]:
