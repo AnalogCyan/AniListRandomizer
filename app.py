@@ -7,6 +7,7 @@ import termios
 import webbrowser
 import shlex
 import subprocess
+import emoji
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -111,6 +112,56 @@ def fetch_anime_list(USER_NAME, SEARCH_SCOPE):
           }
         }
         """
+    elif SEARCH_SCOPE == "U":
+        # Fetch the total number of anime to calculate a random page number
+        count_query = """
+        query {
+          Page(page: 1, perPage: 1) {
+            pageInfo {
+              total
+            }
+            media {
+              id
+            }
+          }
+        }
+        """
+        count_response = requests.post(
+            "https://graphql.anilist.co", json={"query": count_query}, timeout=10
+        )
+        if count_response.status_code != 200:
+            raise Exception(
+                f"Count query failed to run by returning code of {count_response.status_code}. {count_response.text}"
+            )
+        total_anime = count_response.json()["data"]["Page"]["pageInfo"]["total"]
+        random_page = random.randint(1, total_anime // 50)
+
+        query = f"""
+        query {{
+          Page(page: {random_page}, perPage: 50) {{
+            media(type: ANIME) {{
+              id
+              title {{
+                romaji
+                english
+                native
+              }}
+              format
+              status
+              episodes
+              genres
+              studios {{
+                nodes {{
+                  name
+                }}
+              }}
+              tags {{
+                name
+              }}
+            }}
+          }}
+        }}
+        """
     else:
         query = """
         query ($username: String) {
@@ -182,7 +233,7 @@ def fetch_anime_list(USER_NAME, SEARCH_SCOPE):
           }
         }
         """
-    variables = {"username": USER_NAME}
+    variables = {"username": USER_NAME} if SEARCH_SCOPE != "U" else {}
 
     url = "https://graphql.anilist.co"
     response = requests.post(
@@ -198,6 +249,14 @@ def fetch_anime_list(USER_NAME, SEARCH_SCOPE):
 
 
 def calculate_weights(anime_list, SEARCH_SCOPE):
+    if SEARCH_SCOPE == "U":
+        anime_entries = [
+            {"media": entry, "status": "GLOBAL"}
+            for entry in anime_list["data"]["Page"]["media"]
+        ]
+        weights = [1] * len(anime_entries)
+        return anime_entries, weights
+
     weights = []
     anime_entries = []
     completed_ids = set()
@@ -290,7 +349,33 @@ def format_date(date_dict):
     return f"{year}-{month:02d}-{day:02d}"
 
 
-def print_anime_details(selected_entry):
+def generate_random_emoji_string(min_length=3, max_length=7):
+    regional_indicators = {chr(code) for code in range(0x1F1E6, 0x1F1FF + 1)}
+    skin_tone_modifiers = {chr(code) for code in range(0x1F3FB, 0x1F3FF + 1)}
+    variation_selectors = {"\uFE0E", "\uFE0F"}
+    zero_width_joiners = {"\u200D"}
+    emoji_tag_sequences = {chr(code) for code in range(0xE0020, 0xE007F + 1)}
+
+    def is_safe_emoji(emoji_char):
+        return not any(
+            indicator in emoji_char
+            for indicator in regional_indicators
+            | skin_tone_modifiers
+            | variation_selectors
+            | zero_width_joiners
+            | emoji_tag_sequences
+        )
+
+    # Get all emojis from emoji.EMOJI_DATA and exclude problematic ones
+    safe_emojis = [char for char in emoji.EMOJI_DATA.keys() if is_safe_emoji(char)]
+
+    if not safe_emojis:
+        raise ValueError("No safe emojis found.")
+
+    return random.choices(safe_emojis, k=random.randint(min_length, max_length))
+
+
+def print_anime_details(selected_entry, SEARCH_SCOPE):
     console.clear()
     selected_anime = selected_entry["media"]
     progress = selected_entry.get("progress", 0)
@@ -349,7 +434,9 @@ def print_anime_details(selected_entry):
         task = progress_bar.add_task("", total=episodes, completed=progress)
         console.print(Align.center(progress_bar))
     else:
-        if selected_entry.get("status") == "GLOBAL":
+        if SEARCH_SCOPE == "U":
+            status_text = generate_random_emoji_string()
+        elif selected_entry.get("status") == "GLOBAL":
             status_text = "✨ Recommended Anime"
         else:
             status_text = f"Progress: {selected_entry.get('status', 'N/A')}"
@@ -398,7 +485,7 @@ def main_loop():
     while True:
         anime_entries, weights = calculate_weights(anime_list, SEARCH_SCOPE)
         selected_entry = select_random_anime(anime_entries, weights)
-        anime_id, anime_title = print_anime_details(selected_entry)
+        anime_id, anime_title = print_anime_details(selected_entry, SEARCH_SCOPE)
 
         print_key_guide()
 
