@@ -14,11 +14,15 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.progress import Progress, BarColumn, TextColumn
 from rich.align import Align
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 console = Console(record=True)
 
 
 def fetch_anime_list(USER_NAME, SEARCH_SCOPE):
+    url = "https://graphql.anilist.co"
+
     if SEARCH_SCOPE == "Y":
         query = """
         query ($username: String) {
@@ -103,17 +107,15 @@ def fetch_anime_list(USER_NAME, SEARCH_SCOPE):
               studios {
                 nodes {
                   name
+                }}
+                tags {
+                  name
                 }
-              }
-              tags {
-                name
-              }
             }
           }
         }
         """
     elif SEARCH_SCOPE == "U":
-        # Fetch the total number of anime to calculate a random page number
         count_query = """
         query {
           Page(page: 1, perPage: 1) {
@@ -126,9 +128,7 @@ def fetch_anime_list(USER_NAME, SEARCH_SCOPE):
           }
         }
         """
-        count_response = requests.post(
-            "https://graphql.anilist.co", json={"query": count_query}, timeout=10
-        )
+        count_response = requests.post(url, json={"query": count_query}, timeout=10)
         if count_response.status_code != 200:
             raise Exception(
                 f"Count query failed to run by returning code of {count_response.status_code}. {count_response.text}"
@@ -235,17 +235,22 @@ def fetch_anime_list(USER_NAME, SEARCH_SCOPE):
         """
     variables = {"username": USER_NAME} if SEARCH_SCOPE != "U" else {}
 
-    url = "https://graphql.anilist.co"
-    response = requests.post(
-        url, json={"query": query, "variables": variables}, timeout=10
+    session = requests.Session()
+    retries = Retry(
+        total=5, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504]
     )
+    adapter = HTTPAdapter(max_retries=retries)
+    session.mount("https://", adapter)
 
-    if response.status_code == 200:
-        return response.json()
-    else:
-        raise Exception(
-            f"Query failed to run by returning code of {response.status_code}. {response.text}"
+    try:
+        response = session.post(
+            url, json={"query": query, "variables": variables}, timeout=20
         )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching anime list: {e}")
+        return None
 
 
 def calculate_weights(anime_list, SEARCH_SCOPE):
